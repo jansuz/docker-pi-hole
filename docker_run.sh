@@ -1,6 +1,13 @@
 #!/bin/bash
-
 # https://github.com/pi-hole/docker-pi-hole/blob/master/README.md
+
+IP="${IP:-$IP_LOOKUP}"  # use $IP, if set, otherwise IP_LOOKUP
+IPv6="${IPv6:-$IPv6_LOOKUP}"  # use $IPv6, if set, otherwise IP_LOOKUP
+oDNS1=$(scutil --dns | grep -e 'nameserver\[0\]' | head -1 | cut -d: -f2 | xargs)
+oDNS2=$(scutil --dns | grep -e 'nameserver\[1\]' | head -1 | cut -d: -f2 | xargs)
+nDNS=127.0.0.1
+
+echo "Using "$oDNS1" and "$oDNS2" for DNS."
 
 docker run -d \
     --name pihole \
@@ -10,7 +17,8 @@ docker run -d \
     -e TZ="America/Chicago" \
     -v "$(pwd)/etc-pihole/:/etc/pihole/" \
     -v "$(pwd)/etc-dnsmasq.d/:/etc/dnsmasq.d/" \
-    --dns=127.0.0.1 --dns=1.1.1.1 \
+    --dns=$oDNS1 \
+    --dns=$oDNS2 \
     --restart=unless-stopped \
     pihole/pihole:latest
 
@@ -18,7 +26,7 @@ printf 'Starting up pihole container '
 for i in $(seq 1 20); do
     if [ "$(docker inspect -f "{{.State.Health.Status}}" pihole)" == "healthy" ] ; then
         printf ' OK'
-        echo -e "\n$(docker logs pihole 2> /dev/null | grep 'password:') for your pi-hole: https://${IP}/admin/"
+        echo -e "\n$(docker logs pihole 2> /dev/null | grep 'password:') for your pi-hole: https://${nDNS}/admin/"
         exit 0
     else
         sleep 3
